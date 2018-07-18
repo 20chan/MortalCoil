@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
 
 namespace MortalCoil
 {
@@ -15,10 +17,18 @@ namespace MortalCoil
         static Stack<Direction> stack = new Stack<Direction>();
         static void Main(string[] args)
         {
+            var driver = new ChromeDriver();
+            driver.Url = "http://www.hacker.org/forum/login.php";
+            driver.FindElementByName("username").SendKeys(Properties.Settings.Default.ID);
+            driver.FindElementByName("password").SendKeys(Properties.Settings.Default.Password);
+            driver.FindElementByName("login").Click();
+            driver.Url = "http://www.hacker.org/coil/index.php";
             while (true)
             {
                 // var raw = "x=6&y=4&board=...X...X........X...X...";
-                var raw = Console.ReadLine();
+                // var raw = Console.ReadLine();
+                var e = driver.FindElementByTagName("embed");
+                var raw = e.GetAttribute("flashvars");
                 stack = new Stack<Direction>();
 
                 var splited = raw.Split('&');
@@ -54,13 +64,13 @@ namespace MortalCoil
                 SOLVED:
                 Console.WriteLine("Solved!");
                 Console.WriteLine($"Starts at {curx}, {cury}");
-                Console.WriteLine($"http://www.hacker.org/coil/index.php?x={curx}&y={cury}&path={string.Join("", stack.Reverse())}");
                 for (int y = 0; y < Height; y++)
                 {
                     for (int x = 0; x < Width; x++)
                         Console.Write($"{map[y, x],3}");
                     Console.WriteLine();
                 }
+                driver.Url = $"http://www.hacker.org/coil/index.php?x={curx}&y={cury}&path={string.Join("", stack.Reverse())}";
             }
         }
 
