@@ -48,6 +48,14 @@ namespace MortalCoil
                             map[y, x] = WALL;
                     }
 
+                cache = new bool[Height, Width][,];
+                for (int y = 0; y < Height; y++)
+                {
+                    for (int x = 0; x < Width; x++)
+                        cache[y, x] = new bool[Height - y, Width - x];
+                }
+
+
                 int curx = 0, cury = 0;
                 for (cury = 0; cury < Height; cury++)
                     for (curx = 0; curx < Width; curx++)
@@ -77,21 +85,27 @@ namespace MortalCoil
         static bool Solve(int x, int y)
         {
             map[y, x] = 1;
-            var res = Solve(1, x, y);
+            var res = Solve(1, x, y, Direction.None);
             if (res)
                 return true;
             map[y, x] = BLANK;
             return false;
         }
 
-        static bool Solve(int depth, int x, int y)
+        static bool Solve(int depth, int x, int y, Direction from)
         {
+            if (depth % 5 == 0)
+            {
+                var imp = IsImpossible(x, y);
+                if (imp)
+                    return false;
+            }
             (int x, int y)[] deltas =
             {
                 (0, -1), (0, 1), (-1, 0), (1, 0)
             };
 
-            for (Direction dir = Direction.U; dir <= Direction.R; dir++)
+            foreach (var dir in AvailableDirections(from))
             {
                 int dx = deltas[(int)dir].x, dy = deltas[(int)dir].y;
 
@@ -121,7 +135,7 @@ namespace MortalCoil
                 // Console.WriteLine($"{string.Join(",", stack)}");
                 if (Finished())
                     return true;
-                var res = Solve(depth + 1, curx, cury);
+                var res = Solve(depth + 1, curx, cury, dir);
                 if (res)
                     return true;
                 stack.Pop();
@@ -145,9 +159,66 @@ namespace MortalCoil
             return true;
         }
 
+        static bool[,][,] cache;
+        static void ClearCache()
+        {
+            for (int y = 0; y < Height; y++)
+                for (int x = 0; x < Width; x++)
+                    for (int yy = 0; yy < Height - y; yy++)
+                        for (int xx = 0; xx < Width - x; xx++)
+                            cache[y, x][yy, xx] = false;
+        }
+
+        static bool IsImpossible(int x, int y)
+        {
+            ClearCache();
+            return IsImpossible(x, y, x, y, 0, 0);
+        }
+
+        static bool IsImpossible(int px, int py, int curx, int cury, int width, int height)
+        {
+            // Check any area that is covered by wall or trail that player is not near
+
+            if (cache[cury, curx][height, width])
+                return false;
+            cache[cury, curx][height, width] = true;
+
+            if (curx + width >= Width || cury + height >= Height)
+                return false;
+
+            if (IsImpossible(px, py, curx, cury, width + 1, height))
+                return true;
+            if (IsImpossible(px, py, curx, cury, width, height + 1))
+                return true;
+            if (IsImpossible(px, py, curx + 1, cury, 0, 0))
+                return true;
+            if (IsImpossible(px, py, curx, cury + 1, 0, 0))
+                return true;
+            
+            for (int x = curx; x < curx + width; x++)
+                if (map[cury, x] == BLANK || map[cury + height, x] == BLANK)
+                    return false;
+            for (int y = cury; y < cury + height; y++)
+                if (map[y, curx] == BLANK || map[y, curx + width] == BLANK)
+                    return false;
+
+            System.Diagnostics.Debugger.Break();
+            return true;
+        }
+        
         enum Direction
         {
-            U, D, L, R
+            U, D, L, R, None
+        }
+
+        static Direction[] AvailableDirections(Direction dir)
+        {
+            if (dir == Direction.None)
+                return new[] { Direction.U, Direction.D, Direction.L, Direction.R };
+            else if (dir == Direction.L || dir == Direction.R)
+                return new[] { Direction.U, Direction.D };
+            else
+                return new[] { Direction.L, Direction.R };
         }
     }
 }
