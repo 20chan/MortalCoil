@@ -47,15 +47,7 @@ namespace MortalCoil
                         if (ch == 'X')
                             map[y, x] = WALL;
                     }
-
-                cache = new bool[Height, Width][,];
-                for (int y = 0; y < Height; y++)
-                {
-                    for (int x = 0; x < Width; x++)
-                        cache[y, x] = new bool[Height - y, Width - x];
-                }
-
-
+                var now = DateTime.Now;
                 int curx = 0, cury = 0;
                 for (cury = 0; cury < Height; cury++)
                     for (curx = 0; curx < Width; curx++)
@@ -71,6 +63,7 @@ namespace MortalCoil
 
                 SOLVED:
                 Console.WriteLine("Solved!");
+                Console.WriteLine($"Elapsed time: {(DateTime.Now - now).TotalMilliseconds} ms");
                 Console.WriteLine($"Starts at {curx}, {cury}");
                 for (int y = 0; y < Height; y++)
                 {
@@ -94,12 +87,21 @@ namespace MortalCoil
 
         static bool Solve(int depth, int x, int y, Direction from)
         {
-            if (depth % 5 == 0)
-            {
-                var imp = IsImpossible(x, y);
-                if (imp)
-                    return false;
-            }
+            var list = new List<(int x, int y)>();
+            if (IsBlank(x - 1, y))
+                list.Add((x - 1, y));
+            if (IsBlank(x + 1, y))
+                list.Add((x + 1, y));
+            if (IsBlank(x, y - 1))
+                list.Add((x, y - 1));
+            if (IsBlank(x, y + 1))
+                list.Add((x, y + 1));
+
+            foreach (var s in list)
+                foreach (var d in list)
+                    if (!IsReachable(s.x, s.y, d.x, d.y))
+                        return false;
+
             (int x, int y)[] deltas =
             {
                 (0, -1), (0, 1), (-1, 0), (1, 0)
@@ -159,51 +161,41 @@ namespace MortalCoil
             return true;
         }
 
-        static bool[,][,] cache;
-        static void ClearCache()
+        static bool IsBlank(int x, int y)
         {
+            return x >= 0 && x < Width && y >= 0 && y < Height && map[y, x] == BLANK;
+        }
+
+        static bool IsReachable(int sx, int sy, int dx, int dy)
+        {
+            int s = -1, d = -1;
+            int size = Width * Height + 1;
+            var g = new Graph(size);
+
+            int k = 0;
             for (int y = 0; y < Height; y++)
                 for (int x = 0; x < Width; x++)
-                    for (int yy = 0; yy < Height - y; yy++)
-                        for (int xx = 0; xx < Width - x; xx++)
-                            cache[y, x][yy, xx] = false;
-        }
+                {
+                    if (map[y, x] == BLANK)
+                    {
+                        if (IsBlank(x + 1, y))
+                            g.Add(k, k + 1);
+                        if (IsBlank(x - 1, y))
+                            g.Add(k, k - 1);
+                        if (IsBlank(x, y + 1))
+                            g.Add(k, k + Width);
+                        if (IsBlank(x, y - 1))
+                            g.Add(k, k - Width);
+                    }
 
-        static bool IsImpossible(int x, int y)
-        {
-            ClearCache();
-            return IsImpossible(x, y, x, y, 0, 0);
-        }
+                    if (x == sx && y == sy)
+                        s = k;
+                    if (x == dx && y == dy)
+                        d = k;
 
-        static bool IsImpossible(int px, int py, int curx, int cury, int width, int height)
-        {
-            // Check any area that is covered by wall or trail that player is not near
-
-            if (cache[cury, curx][height, width])
-                return false;
-            cache[cury, curx][height, width] = true;
-
-            if (curx + width >= Width || cury + height >= Height)
-                return false;
-
-            if (IsImpossible(px, py, curx, cury, width + 1, height))
-                return true;
-            if (IsImpossible(px, py, curx, cury, width, height + 1))
-                return true;
-            if (IsImpossible(px, py, curx + 1, cury, 0, 0))
-                return true;
-            if (IsImpossible(px, py, curx, cury + 1, 0, 0))
-                return true;
-            
-            for (int x = curx; x < curx + width; x++)
-                if (map[cury, x] == BLANK || map[cury + height, x] == BLANK)
-                    return false;
-            for (int y = cury; y < cury + height; y++)
-                if (map[y, curx] == BLANK || map[y, curx + width] == BLANK)
-                    return false;
-
-            System.Diagnostics.Debugger.Break();
-            return true;
+                    k++;
+                }
+            return g.BFS(s, d);
         }
         
         enum Direction
